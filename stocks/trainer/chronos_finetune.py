@@ -52,13 +52,13 @@ STOCKS_DIR = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs" / "mock-lora-smoke"
 
 
-def holdout_metrics(
+def holdout_rmse(
     pipeline: Chronos2Pipeline,
     val_inputs: list[dict],
     *,
     prediction_length: int,
-) -> dict[str, float]:
-    """Hold out the last ``prediction_length`` target steps; score p50 vs actuals (MAE / RMSE / MAPE)."""
+) -> float:
+    """Hold out the last ``prediction_length`` target steps; RMSE of p50 vs actuals."""
     actuals: list[float] = []
     preds: list[float] = []
 
@@ -82,17 +82,14 @@ def holdout_metrics(
         preds.extend(medians[0][0].tolist())
 
     n = len(actuals)
-    err = [(a - p) for a, p in zip(actuals, preds)]
-    mae = sum(abs(e) for e in err) / n
-    rmse = (sum(e * e for e in err) / n) ** 0.5
-    mape = sum(abs(a - p) / max(abs(a), 1e-8) for a, p in zip(actuals, preds)) / n * 100
-    return {"mae": mae, "rmse": rmse, "mape_pct": mape}
+    mse = sum((a - p) ** 2 for a, p in zip(actuals, preds)) / n
+    return mse ** 0.5
 
 
 def main() -> None:
     pipeline = Chronos2Pipeline.from_pretrained("amazon/chronos-2", device_map="cpu")
 
-    print("val (base):", holdout_metrics(pipeline, mock_val_inputs, prediction_length=PREDICTION_LENGTH))
+    print(f"val RMSE (base):      {holdout_rmse(pipeline, mock_val_inputs, prediction_length=PREDICTION_LENGTH):.4f}")
 
     finetuned = pipeline.fit(
         inputs=mock_train_inputs,
@@ -108,7 +105,7 @@ def main() -> None:
 
     ckpt = OUTPUT_DIR / "finetuned-ckpt"
     print(f"Saved to {ckpt}")
-    print("val (finetuned):", holdout_metrics(finetuned, mock_val_inputs, prediction_length=PREDICTION_LENGTH))
+    print(f"val RMSE (finetuned): {holdout_rmse(finetuned, mock_val_inputs, prediction_length=PREDICTION_LENGTH):.4f}")
 
 
 if __name__ == "__main__":
