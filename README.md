@@ -12,6 +12,46 @@
 
 ---
 
+# Python environment
+
+Dependencies and the installable packages (`stocks`, `poker`) are managed with **[uv](https://docs.astral.sh/uv/)** — a fast Python package manager that reads `pyproject.toml` and `uv.lock`.
+
+## Setup
+
+From the repo root:
+
+```bash
+uv sync
+```
+
+Creates `.venv`, installs locked dependencies (including PyTorch), and installs this project in editable mode so imports like `from stocks.models...` work.
+
+## Run
+
+Use `uv run` so you do not need to activate the virtualenv:
+
+```bash
+# Console scripts (see [project.scripts] in pyproject.toml)
+uv run mc-poker
+
+# Python modules / scripts
+uv run python stocks/models/timeseries_ffn.py
+uv run python -c "import torch; print(torch.__version__)"
+```
+
+Alternatively, activate the venv once: `source .venv/bin/activate`, then run `mc-poker` or `python ...` directly.
+
+## Add a dependency
+
+```bash
+uv add package-name          # add to pyproject.toml and update uv.lock
+uv add --dev package-name    # optional / dev dependency
+```
+
+Then commit the updated `pyproject.toml` and `uv.lock`.
+
+---
+
 # Poker
 
 Monte Carlo simulation for **all-in equity**: given hero hole cards, a number of opponents, and optionally known board cards, it estimates win / tie / loss probabilities by sampling many random runouts.
