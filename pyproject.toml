@@ -12,6 +12,7 @@ dependencies = [
     "chronos-forecasting>=2.0",
     "matplotlib>=3.10.8",
     "pandas[pyarrow]>=3.0.2",
+    "peft>=0.19.1",
     "torch>=2.11.0",
     "tqdm>=4.67.0",
     "yfinance>=1.3.0",
