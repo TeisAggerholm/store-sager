@@ -101,7 +101,7 @@ if __name__ == "__main__":
     from torch.utils.data import Subset
     from tqdm import tqdm
 
-    from stocks.datasets.yf_finance_window_dataset import build_yf_window_loaders
+    from stocks.algorithm.datasets.yf_finance_window_dataset import build_yf_window_loaders
 
     seq_len = 20
     n_features = 5
@@ -272,12 +272,11 @@ if __name__ == "__main__":
 
     fig.tight_layout()
 
-    from stocks.experiments import RUNS_DIR
-    
-    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    runs_dir = Path(__file__).resolve().parents[2] / "artifacts" / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     # ASCII-safe filename (ticker is already a valid symbol string)
-    save_path = RUNS_DIR / f"timeseries_ffn_{pick_sym}_{timestamp}.png"
+    save_path = runs_dir / f"timeseries_ffn_{pick_sym}_{timestamp}.png"
     fig.savefig(save_path, dpi=150, bbox_inches="tight")
     print(f"Saved figure to {save_path}")
     plt.show()

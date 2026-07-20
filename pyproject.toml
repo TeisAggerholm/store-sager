@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "chronos-forecasting>=2.0",
+    "ipykernel>=7.3.0",
     "matplotlib>=3.10.8",
+    "numerapi>=2.23.3",
     "pandas[pyarrow]>=3.0.2",
     "peft>=0.19.1",
     "torch>=2.11.0",

@@ -24,7 +24,7 @@ From the repo root:
 uv sync
 ```
 
-Creates `.venv`, installs locked dependencies (including PyTorch), and installs this project in editable mode so imports like `from stocks.models...` work.
+Creates `.venv`, installs locked dependencies (including PyTorch), and installs this project in editable mode so imports like `from stocks.algorithm.models...` work.
 
 ## Run
 
@@ -35,7 +35,7 @@ Use `uv run` so you do not need to activate the virtualenv:
 uv run mc-poker
 
 # Python modules / scripts
-uv run python stocks/models/timeseries_ffn.py
+uv run python stocks/algorithm/models/timeseries_ffn.py
 uv run python -c "import torch; print(torch.__version__)"
 ```
 

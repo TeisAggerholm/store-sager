@@ -48,7 +48,7 @@ LORA_CONFIG = {
     ],
 }
 
-STOCKS_DIR = Path(__file__).resolve().parents[1]
+STOCKS_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs" / "mock-lora-smoke"
 
 

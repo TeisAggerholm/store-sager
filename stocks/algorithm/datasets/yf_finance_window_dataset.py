@@ -1,7 +1,7 @@
 """Yahoo Finance OHLCV download and sliding-window :class:`Dataset` (``yf`` = ``import yfinance as yf``).
 
 Uses the ``yfinance`` package. Local YF metadata cache path is
-set in :mod:`stocks.datasets` via ``yf.set_tz_cache_location`` (:data:`stocks.datasets.YF_CACHE_DIR`).
+set in :mod:`stocks.algorithm.datasets` via ``yf.set_tz_cache_location`` (:data:`stocks.algorithm.datasets.YF_CACHE_DIR`).
 
 The default :data:`DEFAULT_TICKERS` list is built from **US index ETFs** (e.g. broad market and
 growth/tech proxies) plus **large-cap single-name equities** across several sectors — not a single
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     if len(ds) == 0:
         raise SystemExit(
             "No samples after download (empty dataframe or all NaN). "
-            "Check network and that YF cache is writable (see stocks.datasets.YF_CACHE_DIR)."
+            "Check network and that YF cache is writable (see stocks.algorithm.datasets.YF_CACHE_DIR)."
         )
     loader = DataLoader(ds, batch_size=min(8, len(ds)), shuffle=len(ds) > 1)
     xb, yb = next(iter(loader))
