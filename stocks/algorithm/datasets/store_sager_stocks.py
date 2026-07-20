@@ -22,23 +22,28 @@ class StoreSagerStocks():
 		return data_pack
 	
 	def get_US_data(self, start_date, end_date):
-		files = os.listdir(str(DATA_DIR) + "/us_stocks")
+		us_stocks_dir = str(DATA_DIR) + "/us_stocks"
+		os.makedirs(us_stocks_dir, exist_ok=True)
+
+		files = os.listdir(us_stocks_dir)
 		print(files)
 		if not "us_ticker_lists.csv" in files:
 			print("The US ticker list is not currently in your environment...")
 			print("Downloading the US ticker list ;)")
-			self._download_us_ticker_lists()
+			self._download_us_ticker_lists(us_stocks_dir + "/us_ticker_lists.csv")
 
-		tickers = pd.read_csv(str(DATA_DIR) + "/us_stocks/us_ticker_lists.csv")["symbol"].to_list()
+		tickers = pd.read_csv(us_stocks_dir + "/us_ticker_lists.csv")["symbol"].to_list()
 
-		if not os.path.exists(str(DATA_DIR) + "/us_stocks/stock_data"):
+		if not os.path.exists(us_stocks_dir + "/stock_data"):
 			print("Could not find stock_data...")
 			print("Downloading data :=)")
-			self._multi_scraping(str(DATA_DIR) + "/us_stocks/test/data" , "Close", tickers, start_date, end_date, resolution="1d")
-		if not os.path.exists(str(DATA_DIR) + "/us_stocks/volume_data"):
+			os.makedirs(us_stocks_dir + "/stock_data", exist_ok=True)
+			self._multi_scraping(us_stocks_dir + "/stock_data/" , "Close", tickers, start_date, end_date, resolution="1d")
+		if not os.path.exists(us_stocks_dir + "/volume_data"):
 			print("Could not find volume_data...")
 			print("Downloading data :=)")
-			self._multi_scraping(str(DATA_DIR) + "/us_stocks/test/data" , "Volume", tickers, start_date, end_date, resolution="1d")
+			os.makedirs(us_stocks_dir + "/volume_data", exist_ok=True)
+			self._multi_scraping(us_stocks_dir + "/volume_data/" , "Volume", tickers, start_date, end_date, resolution="1d")
 
 	def _read_symbol_file(self, url: str, exchange_name: str, symbol_column: str) -> pd.DataFrame:
 		data = pd.read_csv(url, sep="|", skipfooter=1, engine="python")
@@ -46,7 +51,12 @@ class StoreSagerStocks():
 		data["exchange"] = exchange_name
 		return data
 
-	def _download_us_ticker_lists(self, output_file: str = "data/us_stocks/us_ticker_lists.csv") -> pd.DataFrame:
+	def _download_us_ticker_lists(self, output_file: str | None = None) -> pd.DataFrame:
+		if output_file is None:
+			output_file = str(DATA_DIR) + "/us_stocks/us_ticker_lists.csv"
+
+		os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
 		nasdaq = self._read_symbol_file(self.NASDAQ_LIST_URL, "NASDAQ", "Symbol")
 		other = self._read_symbol_file(self.OTHER_LIST_URL, "NYSE/AMEX/ARCA", "ACT Symbol")
 
