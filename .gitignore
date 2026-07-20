@@ -50,8 +50,7 @@ Thumbs.db
 !.env.example
 
 # stocks: Yahoo Finance (yfinance) local SQLite cache under algorithm/datasets/data/yf/
-stocks/algorithm/datasets/data/yf/
-
+stocks/algorithm/datasets/data/*
 # stocks: Chronos finetune checkpoints and trainer outputs
 stocks/artifacts/
 

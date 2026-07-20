@@ -1,5 +1,4 @@
 """Smoke-test Chronos-2 fine-tuning on tiny mock series."""
-
 from __future__ import annotations
 
 from pathlib import Path
