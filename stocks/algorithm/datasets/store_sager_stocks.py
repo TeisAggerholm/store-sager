@@ -8,7 +8,6 @@ import yfinance as yf
 from matplotlib import pyplot as plt
 from stocks.algorithm.datasets import DATA_DIR
 
-
 class StoreSagerStocks():
 	NASDAQ_LIST_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 	OTHER_LIST_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
@@ -19,10 +18,10 @@ class StoreSagerStocks():
 		ticker = yf.Ticker(ticker, session=None)
 
 		data = ticker.history(start=start_date_string, end=end_date_string, interval=resolution)
-		data_pack = (data, ticker)
+		data_pack = (data, ticker.ticker)
 		return data_pack
 	
-	def get_data(self, start_date, end_date):
+	def get_US_data(self, start_date, end_date):
 		files = os.listdir(str(DATA_DIR) + "/us_stocks")
 		print(files)
 		if not "us_ticker_lists.csv" in files:
@@ -32,8 +31,14 @@ class StoreSagerStocks():
 
 		tickers = pd.read_csv(str(DATA_DIR) + "/us_stocks/us_ticker_lists.csv")["symbol"].to_list()
 
-		self._multi_scraping(str(DATA_DIR) + "/us_stocks/test/" , ["Volume", "Close"], tickers, start_date, end_date, resolution="1d")
-
+		if not os.path.exists(str(DATA_DIR) + "/us_stocks/stock_data"):
+			print("Could not find stock_data...")
+			print("Downloading data :=)")
+			self._multi_scraping(str(DATA_DIR) + "/us_stocks/test/data" , "Close", tickers, start_date, end_date, resolution="1d")
+		if not os.path.exists(str(DATA_DIR) + "/us_stocks/volume_data"):
+			print("Could not find volume_data...")
+			print("Downloading data :=)")
+			self._multi_scraping(str(DATA_DIR) + "/us_stocks/test/data" , "Volume", tickers, start_date, end_date, resolution="1d")
 
 	def _read_symbol_file(self, url: str, exchange_name: str, symbol_column: str) -> pd.DataFrame:
 		data = pd.read_csv(url, sep="|", skipfooter=1, engine="python")
@@ -243,10 +248,9 @@ class StoreSagerStocks():
 		# create pandas data frame
 		data_frame = pd.DataFrame([closing_price], index=[tick], columns=time_stamps)
 		data_frame.index.name = "date"
-		print(data_frame)
 		return data_frame
     
 if __name__ == "__main__":
 	dataSet = StoreSagerStocks()
 
-	dataSet.get_data((2018, 1, 1), (2026, 7, 20))
+	dataSet.get_US_data((2018, 1, 1), (2026, 7, 20))
