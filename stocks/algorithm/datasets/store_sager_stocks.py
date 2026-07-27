@@ -77,11 +77,11 @@ class StoreSagerStocks():
 		combined.to_csv(output_file, index=False)
 		return combined
 
-	def _train_val_split(self, path_to_folder, types, split_ratio, total_dataset_size, start_date, end_date):
+	def _train_val_split(self, types, split_ratio, total_dataset_size, start_date, end_date):
 		if isinstance(types, str):
 			types = [types]
-
-		value_files = np.array(os.listdir(path_to_folder + "/" + str(types[0]) + "_data"))
+		us_stocks_dir = str(DATA_DIR) + "/us_stocks"
+		value_files = np.array(os.listdir(us_stocks_dir + "/" + str(types[0]) + "_data"))
 
 		train_data_frames = {}
 		validation_data_frames = {}
@@ -98,7 +98,7 @@ class StoreSagerStocks():
 			file_name = shuffled_value_files[i]
 			current_data = {}
 			for data_type in types:
-				current_data[data_type] = pd.read_csv(path_to_folder + "/" + str(data_type) + "_data/" + file_name, index_col=0)
+				current_data[data_type] = pd.read_csv(us_stocks_dir + "/" + str(data_type) + "_data/" + file_name, index_col=0)
 
 			# Shuffle once by ticker and keep that order for all data types.
 			common_tickers = current_data[types[0]].index
@@ -123,12 +123,12 @@ class StoreSagerStocks():
 
 		# Create trainfolder with traning_data and validation_data
 		try:
-			os.makedirs("training", exist_ok=True)
+			os.makedirs(us_stocks_dir + "/training", exist_ok=True)
 			for data_type in types:
 				train_data_frames[data_type] = train_data_frames[data_type].sort_index(axis=1)
 				validation_data_frames[data_type] = validation_data_frames[data_type].sort_index(axis=1)
-				train_data_frames[data_type].to_csv("training/" + str(data_type) + "_train.csv")
-				validation_data_frames[data_type].to_csv("training/" + str(data_type) + "_val.csv")
+				train_data_frames[data_type].to_csv(us_stocks_dir + "/training/" + str(data_type) + "_train.csv")
+				validation_data_frames[data_type].to_csv(us_stocks_dir + "/training/" + str(data_type) + "_val.csv")
 		except:
 			print("Could not create the training environment (training folder, training/train.csv, training/val.csv)")
 
@@ -264,3 +264,5 @@ if __name__ == "__main__":
 	dataSet = StoreSagerStocks()
 
 	dataSet.get_US_data((2018, 1, 1), (2026, 7, 20))
+
+	#dataSet._train_val_split(["stock", "volume"], 0.8, 400, (2018, 1, 1), (2026, 7, 20))
