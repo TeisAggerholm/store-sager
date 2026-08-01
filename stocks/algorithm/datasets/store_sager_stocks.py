@@ -22,11 +22,15 @@ class StoreSagerStocks():
 		return data_pack
 	
 	def get_US_data(self, start_date, end_date):
+		# Checking if us_stocks exist
 		us_stocks_dir = str(DATA_DIR) + "/us_stocks"
 		os.makedirs(us_stocks_dir, exist_ok=True)
 
+		# Reading last updated
+		# TO BE DONE
+
 		files = os.listdir(us_stocks_dir)
-		print(files)
+
 		if not "us_ticker_lists.csv" in files:
 			print("The US ticker list is not currently in your environment...")
 			print("Downloading the US ticker list ;)")
@@ -34,17 +38,32 @@ class StoreSagerStocks():
 
 		tickers = pd.read_csv(us_stocks_dir + "/us_ticker_lists.csv")["symbol"].to_list()
 
-		if not os.path.exists(us_stocks_dir + "/stock_data"):
-			print("Could not find stock_data...")
+		if not os.path.exists(us_stocks_dir + "/close_data"):
+			print("Could not find close_data...")
 			print("Downloading data :=)")
-			os.makedirs(us_stocks_dir + "/stock_data", exist_ok=True)
-			self._multi_scraping(us_stocks_dir + "/stock_data/" , "Close", tickers, start_date, end_date, resolution="1d")
+			os.makedirs(us_stocks_dir + "/close_data", exist_ok=True)
+			self._multi_scraping(us_stocks_dir + "/close_data/" , "Close", tickers, start_date, end_date, resolution="1d")
 		if not os.path.exists(us_stocks_dir + "/volume_data"):
 			print("Could not find volume_data...")
 			print("Downloading data :=)")
 			os.makedirs(us_stocks_dir + "/volume_data", exist_ok=True)
 			self._multi_scraping(us_stocks_dir + "/volume_data/" , "Volume", tickers, start_date, end_date, resolution="1d")
-
+		if not os.path.exists(us_stocks_dir + "/open_data"):
+			print("Could not find open_data...")
+			print("Downloading data :=)")
+			os.makedirs(us_stocks_dir + "/open_data", exist_ok=True)
+			self._multi_scraping(us_stocks_dir + "/open_data/" , "Open", tickers, start_date, end_date, resolution="1d")
+		if not os.path.exists(us_stocks_dir + "/high_data"):
+			print("Could not find high_data...")
+			print("Downloading data :=)")
+			os.makedirs(us_stocks_dir + "/high_data", exist_ok=True)
+			self._multi_scraping(us_stocks_dir + "/high_data/" , "High", tickers, start_date, end_date, resolution="1d")
+		if not os.path.exists(us_stocks_dir + "/low_data"):
+			print("Could not find low_data...")
+			print("Downloading data :=)")
+			os.makedirs(us_stocks_dir + "/low_data", exist_ok=True)
+			self._multi_scraping(us_stocks_dir + "/low_data/" , "Low", tickers, start_date, end_date, resolution="1d")
+			
 	def _read_symbol_file(self, url: str, exchange_name: str, symbol_column: str) -> pd.DataFrame:
 		data = pd.read_csv(url, sep="|", skipfooter=1, engine="python")
 		data = data[data[symbol_column].notna()].copy()
@@ -237,8 +256,8 @@ class StoreSagerStocks():
 				print("Could not concatenate " + str(ticker) + " with the rest!")
 
 			# save
-			if i % 100 == 0:
-				multi_stock_data.to_csv(stock_data_file + str(n) + ".csv")
+			if i % 1000 == 0:
+				multi_stock_data.to_csv(stock_data_file + "data" + str(n) + ".csv")
 				multi_stock_data = pd.DataFrame()
 				n += 1
 
@@ -246,7 +265,7 @@ class StoreSagerStocks():
 
 		# Flush any remaining tickers that did not complete a full batch of 100.
 		if not multi_stock_data.empty:
-			multi_stock_data.to_csv(stock_data_file + str(n) + ".csv")
+			multi_stock_data.to_csv(stock_data_file + "data" + str(n) + ".csv")
 
 	def _reformat_data(self, data_pack, type):
 		data = data_pack[0]
