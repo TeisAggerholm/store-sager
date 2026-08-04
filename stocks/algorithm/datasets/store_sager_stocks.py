@@ -77,7 +77,7 @@ class StoreSagerStocks():
 		combined.to_csv(output_file, index=False)
 		return combined
 
-	def _train_val_split(self, types, split_ratio, total_dataset_size, start_date, end_date):
+	def _train_val_split(self, folder_name, types, split_ratio, total_dataset_size, start_date, end_date):
 		if isinstance(types, str):
 			types = [types]
 		us_stocks_dir = str(DATA_DIR) + "/us_stocks"
@@ -95,6 +95,7 @@ class StoreSagerStocks():
 		i = 0
 
 		while data_equiped < total_dataset_size and i < len(shuffled_value_files):
+			print(data_equiped, "/", total_dataset_size)
 			file_name = shuffled_value_files[i]
 			current_data = {}
 			for data_type in types:
@@ -113,7 +114,7 @@ class StoreSagerStocks():
 
 				for data_type in types:
 					row = current_data[data_type].loc[ticker]
-					train_row, validation_row = self.single_split(row, split_ratio, start_date, end_date)
+					train_row, validation_row = self._single_split(row, split_ratio, start_date, end_date)
 					train_data_frames[data_type] = pd.concat([train_data_frames[data_type], train_row], axis=0, sort=False)
 					validation_data_frames[data_type] = pd.concat([validation_data_frames[data_type], validation_row], axis=0, sort=False)
 
@@ -123,12 +124,12 @@ class StoreSagerStocks():
 
 		# Create trainfolder with traning_data and validation_data
 		try:
-			os.makedirs(us_stocks_dir + "/training", exist_ok=True)
+			os.makedirs(us_stocks_dir + "/training/" + folder_name, exist_ok=True)
 			for data_type in types:
 				train_data_frames[data_type] = train_data_frames[data_type].sort_index(axis=1)
 				validation_data_frames[data_type] = validation_data_frames[data_type].sort_index(axis=1)
-				train_data_frames[data_type].to_csv(us_stocks_dir + "/training/" + str(data_type) + "_train.csv")
-				validation_data_frames[data_type].to_csv(us_stocks_dir + "/training/" + str(data_type) + "_val.csv")
+				train_data_frames[data_type].to_csv(us_stocks_dir + "/training/" + folder_name + "/" + str(data_type) + "_train.csv")
+				validation_data_frames[data_type].to_csv(us_stocks_dir + "/training/" + folder_name + "/" + str(data_type) + "_val.csv")
 		except:
 			print("Could not create the training environment (training folder, training/train.csv, training/val.csv)")
 
@@ -143,8 +144,8 @@ class StoreSagerStocks():
 		row = row.iloc[order]
 		row_index = row_index[order]
 
-		start_date = pd.to_datetime(self.date_to_string(*start_date))
-		end_date = pd.to_datetime(self.date_to_string(*end_date))
+		start_date = pd.to_datetime(self._date_to_string(*start_date))
+		end_date = pd.to_datetime(self._date_to_string(*end_date))
 
 		time_mask = (row_index >= start_date) & (row_index <= end_date)
 		row = row.loc[time_mask]
@@ -263,6 +264,6 @@ class StoreSagerStocks():
 if __name__ == "__main__":
 	dataSet = StoreSagerStocks()
 
-	dataSet.get_US_data((2018, 1, 1), (2026, 7, 20))
+	# dataSet.get_US_data((2018, 1, 1), (2026, 7, 20))
 
-	#dataSet._train_val_split(["stock", "volume"], 0.8, 400, (2018, 1, 1), (2026, 7, 20))
+	dataSet._train_val_split("32", ["stock", "volume"], 0.8, 32, (2018, 1, 1), (2026, 7, 20))
