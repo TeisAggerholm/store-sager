@@ -7,16 +7,17 @@ from pathlib import Path
 
 from chronos.chronos2 import Chronos2Pipeline
 import pandas as pd
+import torch
 
 # --- mock data (same dict shape as predict) ---------------------------------
 # Each dict = one series. "target" is what Chronos learns to forecast.
 # "past_covariates" are extra history channels (not forecast).
-PREDICTION_LENGTH = 2
+PREDICTION_LENGTH = 16
 
 """
 Turn store-sager-stocks data format into chronos
 """
-path = "stocks/algorithm/datasets/data/us_stocks/training"
+path = "stocks/algorithm/datasets/data/us_stocks/training/32"
 target = "stock" # the first always being the target
 
 
@@ -56,8 +57,10 @@ train_inputs, val_inputs = SS_dataformat_to_chronos(path, target, past_covariate
 # --- training config ---------------------------------------------------------
 LEARNING_RATE = 1e-5  # Chronos recommends ~1e-5 for LoRA (1e-6 for full)
 FINETUNE_MODE = "lora"  # needs `peft`; falls back to full if missing
-NUM_STEPS = 75  # tiny smoke run — use 1000+ for real training
-BATCH_SIZE = 4
+EPOCHS = 100
+BATCH_SIZE = 16
+trainset_size = len(train_inputs)
+NUM_STEPS = (trainset_size // BATCH_SIZE) * EPOCHS  # total update steps
 
 # Same modules Chronos uses by default; dict is passed to peft.LoraConfig(**LORA_CONFIG).
 LORA_CONFIG = {
@@ -113,10 +116,14 @@ def holdout_rmse(
 
 
 def main() -> None:
-    pipeline = Chronos2Pipeline.from_pretrained("amazon/chronos-2", device_map="cpu")
-
-    base_rmse = holdout_rmse(pipeline, val_inputs, prediction_length=PREDICTION_LENGTH)
-    print(f"val RMSE (base):      {base_rmse:.4f}")
+    # prefer GPU when available; fall back to CPU
+    cuda_available = torch.cuda.is_available()
+    device_map = "auto" if cuda_available else "cpu"
+    print(f"CUDA available: {cuda_available}; loading model with device_map={device_map}")
+    pipeline = Chronos2Pipeline.from_pretrained("amazon/chronos-2", device_map=device_map)
+    print(f"Loaded Chronos-2 model with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
+    #base_rmse = holdout_rmse(pipeline, val_inputs, prediction_length=PREDICTION_LENGTH)
+    #print(f"val RMSE (base):      {base_rmse:.4f}")
 
     finetuned = pipeline.fit(
         inputs=train_inputs,
@@ -128,14 +135,25 @@ def main() -> None:
         num_steps=NUM_STEPS,
         batch_size=BATCH_SIZE,
         output_dir=OUTPUT_DIR,
+
+         #Logging / eval / save controls:
+        logging_strategy="steps",     # "steps" or "epoch" or "no"
+        logging_steps=1,            # when strategy="steps", how often to log
+        logging_first_step=True,     # log the very first step
+        log_level="info",            # optional: "debug"|"info"|"warning" etc.
+
+        eval_strategy="steps",
+        eval_steps=1,  # ~0.25 epoch for our mock data
+        eval_on_start=True, 
+
     )
 
     ckpt = OUTPUT_DIR / "finetuned-ckpt"
     print(f"Saved to {ckpt}")
-    finetuned_rmse = holdout_rmse(finetuned, val_inputs, prediction_length=PREDICTION_LENGTH)
-    print(f"val RMSE (finetuned): {finetuned_rmse:.4f}")
+    #finetuned_rmse = holdout_rmse(finetuned, val_inputs, prediction_length=PREDICTION_LENGTH)
+    #print(f"val RMSE (finetuned): {finetuned_rmse:.4f}")
 
-    save_metrics(base_rmse, finetuned_rmse)
+    #save_metrics(base_rmse, finetuned_rmse)
 
 
 def save_metrics(base_rmse: float, finetuned_rmse: float) -> None:
