@@ -282,7 +282,8 @@ def _forecast_and_plot(
         name: series.iloc[-HISTORY_PLOT_DAYS:].tolist()
         for name, series in context_cov.items()
     }
-    save_path = save_dir / f"{ticker}_{PREDICTION_LENGTH}d_{model_label}.png"
+    safe_ticker = ticker.replace("/", "-").replace("\\", "-")
+    save_path = save_dir / f"{safe_ticker}_{PREDICTION_LENGTH}d_{model_label}.png"
 
     _plot_forecast(
         ticker=ticker,
@@ -362,8 +363,11 @@ def main() -> None:
     pipeline = Chronos2Pipeline.from_pretrained(model_path, device_map=device_map)
     print(f"Loaded Chronos-2 with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
 
+    # Keep filenames flat (HF ids like "amazon/chronos-2" must not create nested dirs).
     model_label = Path(model_path).name if Path(model_path).exists() else model_path
+    model_label = model_label.replace("/", "-").replace("\\", "-")
     save_dir = Path(args.save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
     total = len(row_indices)
 
     for i, row_idx in enumerate(row_indices, start=1):
