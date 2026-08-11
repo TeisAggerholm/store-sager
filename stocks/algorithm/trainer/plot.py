@@ -1,59 +1,61 @@
-"""Plot metrics produced by chronos_finetune.py, accumulated over time across runs."""
+"""Plot train/eval loss from a HuggingFace trainer_state.json checkpoint."""
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from pathlib import Path
 
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
 STOCKS_DIR = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs" / "mock-lora-smoke"
-HISTORY_PATH = OUTPUT_DIR / "metrics_history.json"
+OUTPUT_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs" / "from-scratch-11700"
 
 
-def load_history(path: Path = HISTORY_PATH) -> list[dict]:
+def latest_trainer_state(output_dir: Path = OUTPUT_DIR) -> Path:
+    checkpoints = sorted(
+        output_dir.glob("checkpoint-*"),
+        key=lambda p: int(p.name.split("-")[-1]),
+    )
+    if not checkpoints:
+        raise FileNotFoundError(f"No checkpoint-* dirs under {output_dir}")
+    state_path = checkpoints[-1] / "trainer_state.json"
+    if not state_path.exists():
+        raise FileNotFoundError(f"No trainer_state.json in {checkpoints[-1]}")
+    return state_path
+
+
+def load_loss_curves(path: Path) -> tuple[list[int], list[float], list[int], list[float]]:
     if not path.exists():
-        raise FileNotFoundError(
-            f"No metrics history at {path}. Run chronos_finetune.py first to generate it."
-        )
-    return json.loads(path.read_text())
+        raise FileNotFoundError(f"No trainer state at {path}. Run chronos_finetune.py first.")
+
+    log_history = json.loads(path.read_text())["log_history"]
+    train_steps = [e["step"] for e in log_history if "loss" in e]
+    train_loss = [e["loss"] for e in log_history if "loss" in e]
+    eval_steps = [e["step"] for e in log_history if "eval_loss" in e]
+    eval_loss = [e["eval_loss"] for e in log_history if "eval_loss" in e]
+    return train_steps, train_loss, eval_steps, eval_loss
 
 
-def plot_history(history: list[dict], save_path: Path | None = None) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+def plot_loss_curves(
+    train_steps: list[int],
+    train_loss: list[float],
+    eval_steps: list[int],
+    eval_loss: list[float],
+    *,
+    save_path: Path | None = None,
+    title: str = "Train / eval loss",
+) -> None:
+    fig, ax = plt.subplots(figsize=(10, 4.5))
 
-    latest = history[-1]
+    if train_steps:
+        ax.plot(train_steps, train_loss, label="train loss", alpha=0.85)
+    if eval_steps:
+        ax.plot(eval_steps, eval_loss, label="eval loss", alpha=0.85)
 
-    # --- latest run's loss curve ------------------------------------------
-    ax = axes[0]
-    if latest["train_steps"]:
-        ax.plot(latest["train_steps"], latest["train_loss"], marker="o", label="train loss")
-    if latest["eval_steps"]:
-        ax.plot(latest["eval_steps"], latest["eval_loss"], marker="o", label="eval loss")
     ax.set_xlabel("step")
     ax.set_ylabel("loss")
-    ax.set_title(f"Fine-tuning loss (latest run: {latest['timestamp']})")
+    ax.set_title(title)
     ax.legend()
     ax.grid(True, alpha=0.3)
-
-    # --- RMSE over time, across runs --------------------------------------
-    ax = axes[1]
-    timestamps = [datetime.fromisoformat(e["timestamp"]) for e in history]
-    base = [e["base_rmse"] for e in history]
-    finetuned = [e["finetuned_rmse"] for e in history]
-
-    ax.plot(timestamps, base, marker="o", label="base")
-    ax.plot(timestamps, finetuned, marker="o", label="finetuned")
-    ax.set_xlabel("run timestamp")
-    ax.set_ylabel("holdout RMSE")
-    ax.set_title(f"RMSE over time ({len(history)} runs)")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M"))
-    fig.autofmt_xdate()
-
     fig.tight_layout()
 
     if save_path is not None:
@@ -64,6 +66,13 @@ def plot_history(history: list[dict], save_path: Path | None = None) -> None:
 
 
 if __name__ == "__main__":
-    history = load_history()
-    plot_history(history, save_path=OUTPUT_DIR / "metrics.png")
-
+    state_path = latest_trainer_state()
+    train_steps, train_loss, eval_steps, eval_loss = load_loss_curves(state_path)
+    plot_loss_curves(
+        train_steps,
+        train_loss,
+        eval_steps,
+        eval_loss,
+        save_path=OUTPUT_DIR / "metrics.png",
+        title=f"Train / eval loss ({state_path.parent.name})",
+    )
