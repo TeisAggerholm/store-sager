@@ -5,14 +5,16 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from chronos.chronos2 import Chronos2Pipeline
+from chronos.chronos2 import Chronos2Model, Chronos2Pipeline
 import pandas as pd
 import torch
+from transformers import AutoConfig
 
 # --- mock data (same dict shape as predict) ---------------------------------
 # Each dict = one series. "target" is what Chronos learns to forecast.
 # "past_covariates" are extra history channels (not forecast).
 PREDICTION_LENGTH = 16
+FROM_SCRATCH = True # Traines a chronos-2 architecture from scratch
 
 """
 Turn store-sager-stocks data format into chronos
@@ -114,22 +116,31 @@ def holdout_rmse(
     mse = sum((a - p) ** 2 for a, p in zip(actuals, preds)) / n
     return mse ** 0.5
 
-
 def main() -> None:
     # prefer GPU when available; fall back to CPU
     cuda_available = torch.cuda.is_available()
+    device = "cuda" if cuda_available else "cpu"
     device_map = "auto" if cuda_available else "cpu"
     print(f"CUDA available: {cuda_available}; loading model with device_map={device_map}")
-    pipeline = Chronos2Pipeline.from_pretrained("amazon/chronos-2", device_map=device_map)
-    print(f"Loaded Chronos-2 model with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
+    
+    if not FROM_SCRATCH:
+        pipeline = Chronos2Pipeline.from_pretrained("amazon/chronos-2", device_map=device_map)
+        print(f"Loaded Chronos-2 model with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
+    else:
+        config = AutoConfig.from_pretrained("amazon/chronos-2")
+        model = Chronos2Model(config).to(device)
+        pipeline = Chronos2Pipeline(model=model)
+        print(f"From-scratch Chronos-2 with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
+
     #base_rmse = holdout_rmse(pipeline, val_inputs, prediction_length=PREDICTION_LENGTH)
     #print(f"val RMSE (base):      {base_rmse:.4f}")
+
 
     finetuned = pipeline.fit(
         inputs=train_inputs,
         validation_inputs=val_inputs,
         prediction_length=PREDICTION_LENGTH,
-        finetune_mode=FINETUNE_MODE,
+        finetune_mode=FINETUNE_MODE if not FROM_SCRATCH else "full",
         lora_config=LORA_CONFIG,
         learning_rate=LEARNING_RATE,
         num_steps=NUM_STEPS,
