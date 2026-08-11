@@ -51,7 +51,11 @@ Thumbs.db
 
 # stocks: Yahoo Finance (yfinance) local SQLite cache under algorithm/datasets/data/yf/
 stocks/algorithm/datasets/data/*
-# stocks: Chronos finetune checkpoints and trainer outputs
-stocks/artifacts/
+# stocks: ignore model weights, keep configs/metrics/plots
+stocks/artifacts/**/*.safetensors
+stocks/artifacts/**/*.bin
+stocks/artifacts/**/*.pt
+stocks/artifacts/**/*.pth
+stocks/artifacts/**/*.ckpt
 
 stocks/numerai/v5.3/*
