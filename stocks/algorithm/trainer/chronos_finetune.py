@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+from datetime import datetime
 from pathlib import Path
 
 from chronos.chronos2 import Chronos2Model, Chronos2Pipeline
@@ -42,7 +43,8 @@ LORA_CONFIG = {
 }
 
 STOCKS_DIR = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs" / "from-scratch-11700"
+RUNS_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs"
+OUTPUT_DIR = RUNS_DIR / f"from-scratch-11700-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
 
 def _build_inputs(target_df, cov_dfs):
@@ -125,6 +127,7 @@ def main() -> None:
         print(f"From-scratch Chronos-2 with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"Run output dir: {OUTPUT_DIR}")
     finetuned = pipeline.fit(
         inputs=train_inputs,
         validation_inputs=val_inputs_eval,

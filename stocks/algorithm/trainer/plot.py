@@ -7,16 +7,28 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 STOCKS_DIR = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs" / "from-scratch-11700"
+RUNS_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs"
+RUN_PREFIX = "from-scratch-11700-"
 
 
-def latest_trainer_state(output_dir: Path = OUTPUT_DIR) -> Path:
+def latest_run_dir(runs_dir: Path = RUNS_DIR) -> Path:
+    runs = sorted(
+        [p for p in runs_dir.glob(f"{RUN_PREFIX}*") if p.is_dir()],
+        key=lambda p: p.name,
+    )
+    if not runs:
+        raise FileNotFoundError(f"No {RUN_PREFIX}* run dirs under {runs_dir}")
+    return runs[-1]
+
+
+def latest_trainer_state(output_dir: Path | None = None) -> Path:
+    run_dir = output_dir if output_dir is not None else latest_run_dir()
     checkpoints = sorted(
-        output_dir.glob("checkpoint-*"),
+        run_dir.glob("checkpoint-*"),
         key=lambda p: int(p.name.split("-")[-1]),
     )
     if not checkpoints:
-        raise FileNotFoundError(f"No checkpoint-* dirs under {output_dir}")
+        raise FileNotFoundError(f"No checkpoint-* dirs under {run_dir}")
     state_path = checkpoints[-1] / "trainer_state.json"
     if not state_path.exists():
         raise FileNotFoundError(f"No trainer_state.json in {checkpoints[-1]}")
@@ -66,13 +78,14 @@ def plot_loss_curves(
 
 
 if __name__ == "__main__":
-    state_path = latest_trainer_state()
+    run_dir = latest_run_dir()
+    state_path = latest_trainer_state(run_dir)
     train_steps, train_loss, eval_steps, eval_loss = load_loss_curves(state_path)
     plot_loss_curves(
         train_steps,
         train_loss,
         eval_steps,
         eval_loss,
-        save_path=OUTPUT_DIR / "metrics.png",
-        title=f"Train / eval loss ({state_path.parent.name})",
+        save_path=run_dir / "metrics.png",
+        title=f"Train / eval loss ({run_dir.name} / {state_path.parent.name})",
     )
