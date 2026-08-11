@@ -141,7 +141,7 @@ def main() -> None:
         validation_inputs=val_inputs,
         prediction_length=PREDICTION_LENGTH,
         finetune_mode=FINETUNE_MODE if not FROM_SCRATCH else "full",
-        lora_config=LORA_CONFIG,
+        lora_config=LORA_CONFIG if not FROM_SCRATCH else None,
         learning_rate=LEARNING_RATE,
         num_steps=NUM_STEPS,
         batch_size=BATCH_SIZE,
