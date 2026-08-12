@@ -36,7 +36,7 @@ LORA_RUN = "stocks/artifacts/chronos/runs/lora-11700-2026-08-12_04-34-47"
 #   MODEL_PATH = FROM_SCRATCH_RUN
 #   MODEL_PATH = LORA_RUN
 #   MODEL_PATH = f"{FROM_SCRATCH_RUN}/checkpoint-24000"
-MODEL_PATH = PRETRAINED_HF
+MODEL_PATH = LORA_RUN
 
 # Optional: within a run dir, prefer this subfolder.
 #   None            → finetuned-ckpt if present, else latest checkpoint-*
