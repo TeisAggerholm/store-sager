@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 STOCKS_DIR = Path(__file__).resolve().parents[2]
 RUNS_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs"
-RUN_PREFIX = "from-scratch-11700-"
+RUN_PREFIX = "lora-11700-2026-"
 
 
 def latest_run_dir(runs_dir: Path = RUNS_DIR) -> Path:
@@ -86,6 +86,6 @@ if __name__ == "__main__":
         train_loss,
         eval_steps,
         eval_loss,
-        save_path=run_dir / "metrics.png",
+        save_path=run_dir / "loss.png",
         title=f"Train / eval loss ({run_dir.name} / {state_path.parent.name})",
     )

@@ -9,6 +9,10 @@ import pandas as pd
 import torch
 from chronos.chronos2 import Chronos2Pipeline
 
+STOCKS_DIR = Path(__file__).resolve().parents[2]
+RUNS_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs"
+DEFAULT_SAVE_DIR = RUNS_DIR / "forecast-plots"
+
 # --- data ------------------------------------------------------------------
 PREDICTION_LENGTH = 16
 DATA_PATH = "stocks/algorithm/datasets/data/us_stocks/training/11700"
@@ -20,31 +24,49 @@ HISTORY_PLOT_DAYS = 120  # visual context window before forecast start
 NUM_TICKERS = 5  # random tickers to plot sequentially (close each window to continue)
 
 # --- model -----------------------------------------------------------------
-# HuggingFace id, or a local artifacts path (finetuned-ckpt / checkpoint-* / run dir).
+# Named run dirs (resolved relative to RUNS_DIR / cwd / repo).
+PRETRAINED_HF = "amazon/chronos-2"
+FROM_SCRATCH_RUN = "stocks/artifacts/chronos/runs/from-scratch-11700-2026-08-11_23-47-31"
+LORA_RUN = "stocks/artifacts/chronos/runs/lora-11700-2026-08-12_04-34-47"
+
+# Which weights to load: set MODEL_PATH to one of the presets above, or any
+# HF id / run dir / finetuned-ckpt / checkpoint-* path.
 # Examples:
-#   amazon/chronos-2
-#   stocks/artifacts/chronos/runs/mock-lora-smoke/finetuned-ckpt
-#   stocks/artifacts/chronos/runs/lora-11700-.../checkpoint-1000
-MODEL_PATH = "amazon/chronos-2"
+#   MODEL_PATH = PRETRAINED_HF
+#   MODEL_PATH = FROM_SCRATCH_RUN
+#   MODEL_PATH = LORA_RUN
+#   MODEL_PATH = f"{FROM_SCRATCH_RUN}/checkpoint-24000"
+MODEL_PATH = PRETRAINED_HF
 
-STOCKS_DIR = Path(__file__).resolve().parents[2]
-RUNS_DIR = STOCKS_DIR / "artifacts" / "chronos" / "runs"
-DEFAULT_SAVE_DIR = RUNS_DIR / "forecast-plots"
+# Optional: within a run dir, prefer this subfolder.
+#   None            → finetuned-ckpt if present, else latest checkpoint-*
+#   "finetuned-ckpt"→ final saved model / LoRA adapter
+#   "checkpoint-12000" → a specific mid-training checkpoint
+MODEL_CHECKPOINT: str | None = None
 
 
-def _resolve_model_path(model_path: str) -> str:
+def _resolve_model_path(model_path: str, checkpoint: str | None = None) -> str:
     """Return a local path if it resolves on disk, otherwise treat as HF model id."""
     candidates = [
         Path(model_path),
         Path.cwd() / model_path,
         STOCKS_DIR / model_path,
         STOCKS_DIR.parent / model_path,
+        RUNS_DIR / Path(model_path).name,
     ]
     for candidate in candidates:
         if candidate.exists():
             resolved = candidate.resolve()
-            # Allow pointing at a run dir: prefer finetuned-ckpt, else latest checkpoint-*.
-            if resolved.is_dir() and not (resolved / "config.json").exists():
+            # Allow pointing at a run dir: optional checkpoint override, else
+            # prefer finetuned-ckpt, else latest checkpoint-*.
+            if resolved.is_dir() and not (resolved / "config.json").exists() and not (
+                resolved / "adapter_config.json"
+            ).exists():
+                if checkpoint is not None:
+                    ckpt = resolved / checkpoint
+                    if not ckpt.exists():
+                        raise FileNotFoundError(f"Checkpoint not found: {ckpt}")
+                    return str(ckpt)
                 finetuned = resolved / "finetuned-ckpt"
                 if finetuned.exists():
                     return str(finetuned)
@@ -56,6 +78,40 @@ def _resolve_model_path(model_path: str) -> str:
                     return str(checkpoints[-1])
             return str(resolved)
     return model_path
+
+
+def _model_label(model_path: str, requested_path: str) -> str:
+    """Flat filename-friendly label that keeps the run name when possible."""
+    resolved = Path(model_path)
+    parent = resolved.parent
+    if parent.name.startswith(("from-scratch-", "lora-", "mock-")) or "-11700-" in parent.name:
+        # Plots live under the run dir already — keep only the checkpoint leaf.
+        label = resolved.name
+    elif resolved.exists():
+        label = resolved.name
+    else:
+        label = requested_path
+    return label.replace("/", "-").replace("\\", "-")
+
+
+def _run_dir_for_model(model_path: str) -> Path | None:
+    """If model_path sits under a chronos run folder, return that run dir."""
+    path = Path(model_path).resolve()
+    for candidate in (path, *path.parents):
+        if candidate.parent == RUNS_DIR.resolve() and candidate.is_dir():
+            if candidate.name == "forecast-plots":
+                return None
+            return candidate
+    return None
+
+
+def _default_save_dir(model_path: str, requested_path: str) -> Path:
+    """Save under <run>/forecast-plots for local runs; shared folder for HF weights."""
+    run_dir = _run_dir_for_model(model_path)
+    if run_dir is not None:
+        return run_dir / "forecast-plots"
+    label = requested_path.replace("/", "-").replace("\\", "-")
+    return DEFAULT_SAVE_DIR / label
 
 
 def _resolve_data_path(data_path: str) -> Path:
@@ -317,6 +373,11 @@ def main() -> None:
         default=MODEL_PATH,
         help="HF model id or local artifacts path (default: %(default)s)",
     )
+    parser.add_argument(
+        "--checkpoint",
+        default=MODEL_CHECKPOINT,
+        help='Optional run subfolder, e.g. "finetuned-ckpt" or "checkpoint-12000"',
+    )
     parser.add_argument("--data-path", default=DATA_PATH, help="11700 training split directory")
     parser.add_argument(
         "-n",
@@ -334,14 +395,14 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=None, help="RNG seed for random ticker pick")
     parser.add_argument(
         "--save-dir",
-        default=str(DEFAULT_SAVE_DIR),
-        help="Directory for the saved PNG",
+        default=None,
+        help="Directory for the saved PNG (default: <run>/forecast-plots or shared forecast-plots/<model>)",
     )
     parser.add_argument("--no-show", action="store_true", help="Save only; do not open a window")
     args = parser.parse_args()
 
     data_dir = _resolve_data_path(args.data_path)
-    model_path = _resolve_model_path(args.model_path)
+    model_path = _resolve_model_path(args.model_path, checkpoint=args.checkpoint)
     print(f"Data:  {data_dir}")
     print(f"Model: {model_path}")
 
@@ -363,11 +424,10 @@ def main() -> None:
     pipeline = Chronos2Pipeline.from_pretrained(model_path, device_map=device_map)
     print(f"Loaded Chronos-2 with {sum(p.numel() for p in pipeline.model.parameters()):,} parameters")
 
-    # Keep filenames flat (HF ids like "amazon/chronos-2" must not create nested dirs).
-    model_label = Path(model_path).name if Path(model_path).exists() else model_path
-    model_label = model_label.replace("/", "-").replace("\\", "-")
-    save_dir = Path(args.save_dir)
+    model_label = _model_label(model_path, args.model_path)
+    save_dir = Path(args.save_dir) if args.save_dir else _default_save_dir(model_path, args.model_path)
     save_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Save dir: {save_dir}")
     total = len(row_indices)
 
     for i, row_idx in enumerate(row_indices, start=1):
